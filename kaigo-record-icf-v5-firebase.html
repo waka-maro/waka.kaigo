@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>介護記録＆写真保存（ICF詳細・Firebase対応）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+    }
+    header {
+      background: #4caf50;
+      color: white;
+      padding: 12px 16px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    main {
+      padding: 12px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      margin: 4px 0 2px;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    select,
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 7px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 13px;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .input-row > div {
+      flex: 1;
+    }
+    .btn {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: none;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn-primary {
+      background: #4caf50;
+      color: white;
+    }
+    .btn-secondary {
+      background: #607d8b;
+      color: white;
+    }
+    .btn-danger {
+      background: #f44336;
+      color: white;
+    }
+    .btn:active {
+      transform: translateY(1px);
+    }
+    .photo-preview {
+      margin-top: 8px;
+    }
+    .photo-preview img {
+      max-width: 120px;
+      border-radius: 6px;
+      display: block;
+    }
+    .records-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 8px 0;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .record-card {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid #eee;
+      padding: 8px 0;
+    }
+    .record-card:last-child {
+      border-bottom: none;
+    }
+    .record-card img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .record-info {
+      flex: 1;
+      font-size: 13px;
+    }
+    .record-meta {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .record-section-title {
+      font-weight: bold;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .empty-text {
+      font-size: 13px;
+      color: #777;
+    }
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .filter-row > div {
+      flex: 1;
+      min-width: 120px;
+    }
+    small.help {
+      font-size: 11px;
+      color: #777;
+    }
+    .icf-block {
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 6px;
+      background: #f9fafb;
+      border: 1px solid #e0e0e0;
+    }
+    .icf-block-title {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    /* モーダル（写真拡大表示） */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .modal-backdrop.show {
+      display: flex;
+    }
+    .modal-inner {
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+    .modal-inner img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 8px;
+    }
+    .auth-info {
+      font-size: 13px;
+      color: #444;
+      margin-top: 4px;
+    }
+    @media (max-width: 600px) {
+      .record-card {
+        flex-direction: row;
+      }
+      .record-card img {
+        width: 72px;
+        height: 72px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>介護記録＆写真保存（ICF詳細・Firebase対応）</header>
+  <main>
+    <!-- 🔐 ログイン／サインアップ -->
+    <section class="card" id="authSection">
+      <h2>ログイン / 新規登録</h2>
+      <label for="authEmail">メールアドレス</label>
+      <input id="authEmail" type="text" placeholder="example@example.com" />
+
+      <label for="authPassword">パスワード</label>
+      <input id="authPassword" type="password" placeholder="6文字以上" />
+
+      <button class="btn btn-primary" id="loginBtn">ログイン</button>
+      <button class="btn btn-secondary" id="signupBtn">新規登録</button>
+
+      <div class="auth-info" id="authMessage"></div>
+    </section>
+
+    <!-- 👤 ログイン中情報 -->
+    <section class="card" id="userSection" style="display:none;">
+      <div>
+        現在ログイン中：<span id="userEmail"></span>
+      </div>
+      <button class="btn" id="logoutBtn">ログアウト</button>
+    </section>
+
+    <!-- アプリ本体（ログイン後に表示） -->
+    <div id="appSection" style="display:none;">
+      <!-- 入力フォーム -->
+      <section class="card">
+        <h2>新しい記録を追加</h2>
+
+        <div class="input-row">
+          <div>
+            <label for="careDate">日付</label>
+            <input id="careDate" type="date" />
+          </div>
+          <div>
+            <label for="patientId">患者番号</label>
+            <input id="patientId" type="text" placeholder="例：A-001" />
+          </div>
+        </div>
+
+        <label for="name">名前（利用者さん）</label>
+        <input id="name" type="text" placeholder="例：山田 太郎" />
+
+        <label for="allergy">アレルギー</label>
+        <input id="allergy" type="text" placeholder="例：卵アレルギー、花粉症など" />
+
+        <label for="note">メモ（介護内容・様子など）</label>
+        <textarea id="note" placeholder="例：昼食は完食。15分ほど散歩。特に異常なし。"></textarea>
+
+        <!-- ICF評価ブロック -->
+        <div class="icf-block">
+          <div class="icf-block-title">ICFの評価</div>
+
+          <label for="icfActivityLevel">
+            活動レベル（1〜5）<br>
+            <small class="help">1＝全介助 / 2＝多くの介助 / 3＝一部介助 / 4＝見守り / 5＝自立</small>
+          </label>
+          <select id="icfActivityLevel">
+            <option value="">選択してください</option>
+            <option value="1：全介助">1：全介助</option>
+            <option value="2：多くの介助">2：多くの介助</option>
+            <option value="3：一部介助">3：一部介助</option>
+            <option value="4：見守り">4：見守り</option>
+            <option value="5：自立">5：自立</option>
+          </select>
+
+          <label for="icfEnvironment">環境因子</label>
+          <textarea id="icfEnvironment" placeholder="例：家族の協力良好。住宅内に段差少なく、手すりあり。デイサービス週3回利用。"></textarea>
+
+          <label for="icfMemo">ICFメモ</label>
+          <textarea id="icfMemo" placeholder="ICF全体に関する補足メモなど。"></textarea>
+        </div>
+
+        <div class="input-row">
+          <div>
+            <label for="temperature">体温（℃）</label>
+            <input id="temperature" type="number" step="0.1" placeholder="例：36.8" />
+          </div>
+          <div>
+            <label for="pulse">脈拍（回/分）</label>
+            <input id="pulse" type="number" step="1" placeholder="例：72" />
+          </div>
+        </div>
+
+        <label for="toiletStatus">トイレ状況</label>
+        <textarea id="toiletStatus" placeholder="例：トイレ誘導で自立。夜間1回。失禁なし。"></textarea>
+
+        <div class="input-row">
+          <div>
+            <label for="mealAmount">食事量</label>
+            <select id="mealAmount">
+              <option value="">選択してください</option>
+              <option value="完食">完食</option>
+              <option value="8割程度">8割程度</option>
+              <option value="半分くらい">半分くらい</option>
+              <option value="少量">少量</option>
+              <option value="ほとんど無し">ほとんど無し</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="mealContent">食事内容</label>
+        <textarea id="mealContent" placeholder="例：ご飯、みそ汁、焼き魚、サラダ、ヨーグルト"></textarea>
+
+        <label for="medicationStatus">薬の摂取状況</label>
+        <textarea id="medicationStatus" placeholder="例：朝食後の内服は全て内服確認。眠前薬も内服済み。"></textarea>
+
+        <label for="photo">写真（カメラ or ギャラリー）</label>
+        <input
+          id="photo"
+          type="file"
+          accept="image/*"
+          capture="environment"
+        />
+        <small class="help">※対応端末ではカメラが起動します。</small>
+
+        <div class="photo-preview" id="photoPreview"></div>
+
+        <button class="btn btn-primary" id="saveBtn">記録を保存</button>
+      </section>
+
+      <!-- 検索・絞り込み -->
+      <section class="card">
+        <h2>検索・絞り込み</h2>
+        <div class="filter-row">
+          <div>
+            <label for="filterDateFrom">日付（開始）</label>
+            <input id="filterDateFrom" type="date" />
+          </div>
+          <div>
+            <label for="filterDateTo">日付（終了）</label>
+            <input id="filterDateTo" type="date" />
+          </div>
+          <div>
+            <label for="filterPatientId">患者番号</label>
+            <input id="filterPatientId" type="text" placeholder="例：A-001" />
+          </div>
+        </div>
+        <button class="btn btn-secondary" id="applyFilterBtn">絞り込み</button>
+        <button class="btn" id="clearFilterBtn">絞り込み解除</button>
+        <div>
+          <small class="help">
+            ※日付は「ケア日」で検索します。患者番号は完全一致で絞り込みます。
+          </small>
+        </div>
+      </section>
+
+      <!-- 記録一覧 -->
+      <section class="card">
+        <div class="records-header">
+          <h2>保存した記録</h2>
+          <button class="btn btn-danger" id="clearAllBtn">全削除</button>
+        </div>
+        <div id="recordsContainer"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- 写真拡大用モーダル -->
+  <div class="modal-backdrop" id="photoModal">
+    <div class="modal-inner">
+      <img id="modalImage" src="" alt="拡大写真" />
+    </div>
+  </div>
+
+  <!-- Firebase + アプリロジック -->
+  <script type="module">
+    // 🔥 Firebase SDK 読み込み
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getAuth,
+      onAuthStateChanged,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      signOut,
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      getDocs,
+      deleteDoc,
+      doc,
+      writeBatch,
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ⭐⭐ ここを書き換えてください（Firebaseコンソールの設定を貼り付け）
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqyUcPQ4krG8ez2Orhdfoequ5QdAAZBtQ",
+      authDomain: "kaigo-48b37.firebaseapp.com",
+      projectId: "kaigo-48b37",
+      storageBucket: "kaigo-48b37.firebasestorage.app",
+      messagingSenderId: "818802593664",
+      appId: "1:818802593664:web:21ea9d81e25cee73917b65",
+      measurementId: "G-6L7Y6LNCLV"
+     };
+
+    // Firebase 初期化
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // DOM要素 ---------------
+
+    // Auth
+    const authSection = document.getElementById("authSection");
+    const userSection = document.getElementById("userSection");
+    const appSection = document.getElementById("appSection");
+    const authEmailInput = document.getElementById("authEmail");
+    const authPasswordInput = document.getElementById("authPassword");
+    const authMessage = document.getElementById("authMessage");
+    const userEmailSpan = document.getElementById("userEmail");
+    const loginBtn = document.getElementById("loginBtn");
+    const signupBtn = document.getElementById("signupBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    // App
+    const careDateInput = document.getElementById("careDate");
+    const patientIdInput = document.getElementById("patientId");
+    const nameInput = document.getElementById("name");
+    const allergyInput = document.getElementById("allergy");
+    const noteInput = document.getElementById("note");
+    const icfActivityLevelInput = document.getElementById("icfActivityLevel");
+    const icfEnvironmentInput = document.getElementById("icfEnvironment");
+    const icfMemoInput = document.getElementById("icfMemo");
+    const temperatureInput = document.getElementById("temperature");
+    const pulseInput = document.getElementById("pulse");
+    const toiletStatusInput = document.getElementById("toiletStatus");
+    const mealAmountInput = document.getElementById("mealAmount");
+    const mealContentInput = document.getElementById("mealContent");
+    const medicationStatusInput = document.getElementById("medicationStatus");
+    const photoInput = document.getElementById("photo");
+    const photoPreview = document.getElementById("photoPreview");
+    const saveBtn = document.getElementById("saveBtn");
+    const clearAllBtn = document.getElementById("clearAllBtn");
+    const recordsContainer = document.getElementById("recordsContainer");
+
+    const filterDateFromInput = document.getElementById("filterDateFrom");
+    const filterDateToInput = document.getElementById("filterDateTo");
+    const filterPatientIdInput = document.getElementById("filterPatientId");
+    const applyFilterBtn = document.getElementById("applyFilterBtn");
+    const clearFilterBtn = document.getElementById("clearFilterBtn");
+
+    const photoModal = document.getElementById("photoModal");
+    const modalImage = document.getElementById("modalImage");
+
+    let tempPhotoDataUrl = null;
+    let currentUser = null;
+    let recordsCache = []; // Firestoreから読み込んだデータを保持
+
+    // 今日の日付を初期値に
+    function setTodayToCareDate() {
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, "0");
+      const d = String(today.getDate()).padStart(2, "0");
+      careDateInput.value = `${y}-${m}-${d}`;
+    }
+
+    // 画像選択時にプレビューを表示
+    photoInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) {
+        tempPhotoDataUrl = null;
+        photoPreview.innerHTML = "";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        tempPhotoDataUrl = ev.target.result;
+        photoPreview.innerHTML = "<img src='" + tempPhotoDataUrl + "' alt='プレビュー' />";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 🔐 Auth処理 ---------------------------------
+
+    function setAuthMessage(msg) {
+      authMessage.textContent = msg;
+    }
+
+    loginBtn.addEventListener("click", async () => {
+      const email = authEmailInput.value.trim();
+      const password = authPasswordInput.value.trim();
+      if (!email || !password) {
+        setAuthMessage("メールアドレスとパスワードを入力してください。");
+        return;
+      }
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        setAuthMessage("ログインしました。");
+      } catch (e) {
+        console.error(e);
+        setAuthMessage("ログインに失敗しました: " + e.message);
+      }
+    });
+
+    signupBtn.addEventListener("click", async () => {
+      const email = authEmailInput.value.trim();
+      const password = authPasswordInput.value.trim();
+      if (!email || !password) {
+        setAuthMessage("メールアドレスとパスワードを入力してください。");
+        return;
+      }
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+        setAuthMessage("新規登録が完了しました。ログイン状態になりました。");
+      } catch (e) {
+        console.error(e);
+        setAuthMessage("新規登録に失敗しました: " + e.message);
+      }
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user || null;
+
+      if (user) {
+        authSection.style.display = "none";
+        userSection.style.display = "block";
+        appSection.style.display = "block";
+        userEmailSpan.textContent = user.email || "(メール未設定)";
+        setAuthMessage("");
+        await fetchRecordsFromFirestore();
+      } else {
+        authSection.style.display = "block";
+        userSection.style.display = "none";
+        appSection.style.display = "none";
+        userEmailSpan.textContent = "";
+        recordsCache = [];
+        recordsContainer.innerHTML = "";
+      }
+    });
+
+    // 🗄 Firestore から記録を取得 -------------------
+
+    async function fetchRecordsFromFirestore() {
+      if (!currentUser) return;
+      try {
+        const colRef = collection(db, "users", currentUser.uid, "records");
+        const snap = await getDocs(colRef);
+        const list = [];
+        snap.forEach((docSnap) => {
+          const data = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            ...data,
+          });
+        });
+        // createdAtの新しい順にソート
+        list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        recordsCache = list;
+        renderRecords();
+      } catch (e) {
+        console.error("fetchRecords error", e);
+        alert("記録の読み込みに失敗しました。");
+      }
+    }
+
+    // 絞り込み条件を取得
+    function getFilterConditions() {
+      return {
+        dateFrom: filterDateFromInput.value || null,
+        dateTo: filterDateToInput.value || null,
+        patientId: filterPatientIdInput.value.trim() || null,
+      };
+    }
+
+    // 記録一覧を描画（recordsCacheに基づいて）
+    function renderRecords() {
+      recordsContainer.innerHTML = "";
+
+      if (!recordsCache || recordsCache.length === 0) {
+        const p = document.createElement("p");
+        p.className = "empty-text";
+        p.textContent = "まだ記録はありません。上のフォームから追加してください。";
+        recordsContainer.appendChild(p);
+        return;
+      }
+
+      const filters = getFilterConditions();
+
+      const filtered = recordsCache.filter((record) => {
+        const careDate = record.careDate || "";
+        if (filters.dateFrom && careDate && careDate < filters.dateFrom) {
+          return false;
+        }
+        if (filters.dateTo && careDate && careDate > filters.dateTo) {
+          return false;
+        }
+        if (filters.patientId && record.patientId !== filters.patientId) {
+          return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        const p = document.createElement("p");
+        p.className = "empty-text";
+        p.textContent = "絞り込み条件に合う記録がありません。";
+        recordsContainer.appendChild(p);
+        return;
+      }
+
+      filtered.forEach((record) => {
+        const card = document.createElement("div");
+        card.className = "record-card";
+
+        if (record.photoDataUrl) {
+          const img = document.createElement("img");
+          img.src = record.photoDataUrl;
+          img.alt = "記録写真";
+          img.addEventListener("click", () => openPhotoModal(record.photoDataUrl));
+          card.appendChild(img);
+        }
+
+        const info = document.createElement("div");
+        info.className = "record-info";
+
+        const meta = document.createElement("div");
+        meta.className = "record-meta";
+
+        const createdStr = record.createdAt
+          ? new Date(record.createdAt).toLocaleString("ja-JP")
+          : "";
+        const careDateStr = record.careDate ? record.careDate : "日付未入力";
+        const patientIdStr = record.patientId || "患者番号なし";
+        const nameStr = record.name || "名前なし";
+
+        meta.textContent = `ケア日: ${careDateStr} / 患者番号: ${patientIdStr} / 氏名: ${nameStr} / 登録: ${createdStr}`;
+        info.appendChild(meta);
+
+        if (record.allergy) {
+          const allergyTitle = document.createElement("div");
+          allergyTitle.className = "record-section-title";
+          allergyTitle.textContent = "アレルギー";
+          info.appendChild(allergyTitle);
+
+          const allergy = document.createElement("div");
+          allergy.textContent = record.allergy;
+          info.appendChild(allergy);
+        }
+
+        if (record.note) {
+          const noteTitle = document.createElement("div");
+          noteTitle.className = "record-section-title";
+          noteTitle.textContent = "メモ";
+          info.appendChild(noteTitle);
+
+          const note = document.createElement("div");
+          note.textContent = record.note;
+          info.appendChild(note);
+        }
+
+        if (record.icfActivityLevel || record.icfEnvironment || record.icfMemo) {
+          const icfTitle = document.createElement("div");
+          icfTitle.className = "record-section-title";
+          icfTitle.textContent = "ICFの評価";
+          info.appendChild(icfTitle);
+
+          if (record.icfActivityLevel) {
+            const act = document.createElement("div");
+            act.textContent = `活動レベル: ${record.icfActivityLevel}`;
+            info.appendChild(act);
+          }
+          if (record.icfEnvironment) {
+            const env = document.createElement("div");
+            env.textContent = `環境因子: ${record.icfEnvironment}`;
+            info.appendChild(env);
+          }
+          if (record.icfMemo) {
+            const memo = document.createElement("div");
+            memo.textContent = `メモ: ${record.icfMemo}`;
+            info.appendChild(memo);
+          }
+        }
+
+        if (record.temperature || record.pulse) {
+          const vitalTitle = document.createElement("div");
+          vitalTitle.className = "record-section-title";
+          vitalTitle.textContent = "バイタル";
+          info.appendChild(vitalTitle);
+
+          const vital = document.createElement("div");
+          const vitalParts = [];
+          if (record.temperature) vitalParts.push(`体温: ${record.temperature}℃`);
+          if (record.pulse) vitalParts.push(`脈拍: ${record.pulse} 回/分`);
+          vital.textContent = vitalParts.join(" / ");
+          info.appendChild(vital);
+        }
+
+        if (record.toiletStatus) {
+          const toiletTitle = document.createElement("div");
+          toiletTitle.className = "record-section-title";
+          toiletTitle.textContent = "トイレ状況";
+          info.appendChild(toiletTitle);
+
+          const toilet = document.createElement("div");
+          toilet.textContent = record.toiletStatus;
+          info.appendChild(toilet);
+        }
+
+        if (record.mealAmount || record.mealContent) {
+          const mealTitle = document.createElement("div");
+          mealTitle.className = "record-section-title";
+          mealTitle.textContent = "食事";
+          info.appendChild(mealTitle);
+
+          const meal = document.createElement("div");
+          const lines = [];
+          if (record.mealAmount) lines.push(`量: ${record.mealAmount}`);
+          if (record.mealContent) lines.push(`内容: ${record.mealContent}`);
+          meal.textContent = lines.join(" / ");
+          info.appendChild(meal);
+        }
+
+        if (record.medicationStatus) {
+          const medTitle = document.createElement("div");
+          medTitle.className = "record-section-title";
+          medTitle.textContent = "薬の摂取状況";
+          info.appendChild(medTitle);
+
+          const med = document.createElement("div");
+          med.textContent = record.medicationStatus;
+          info.appendChild(med);
+        }
+
+        card.appendChild(info);
+        recordsContainer.appendChild(card);
+      });
+    }
+
+    // 記録を保存
+    saveBtn.addEventListener("click", async () => {
+      if (!currentUser) {
+        alert("まずログインしてください。");
+        return;
+      }
+
+      const careDate = careDateInput.value;
+      const patientId = patientIdInput.value.trim();
+      const name = nameInput.value.trim();
+      const allergy = allergyInput.value.trim();
+      const note = noteInput.value.trim();
+      const icfActivityLevel = icfActivityLevelInput.value;
+      const icfEnvironment = icfEnvironmentInput.value.trim();
+      const icfMemo = icfMemoInput.value.trim();
+      const temperature = temperatureInput.value.trim();
+      const pulse = pulseInput.value.trim();
+      const toiletStatus = toiletStatusInput.value.trim();
+      const mealAmount = mealAmountInput.value;
+      const mealContent = mealContentInput.value.trim();
+      const medicationStatus = medicationStatusInput.value.trim();
+
+      if (
+        !careDate && !patientId && !name && !note &&
+        !tempPhotoDataUrl &&
+        !icfActivityLevel && !icfEnvironment && !icfMemo &&
+        !allergy && !toiletStatus &&
+        !mealAmount && !mealContent && !medicationStatus &&
+        !temperature && !pulse
+      ) {
+        alert("いずれか一つ以上を入力してください。");
+        return;
+      }
+
+      const now = Date.now();
+      const newRecord = {
+        careDate,
+        patientId,
+        name,
+        allergy,
+        note,
+        icfActivityLevel,
+        icfEnvironment,
+        icfMemo,
+        temperature,
+        pulse,
+        toiletStatus,
+        mealAmount,
+        mealContent,
+        medicationStatus,
+        photoDataUrl: tempPhotoDataUrl,
+        createdAt: now,
+      };
+
+      try {
+        const colRef = collection(db, "users", currentUser.uid, "records");
+        await addDoc(colRef, newRecord);
+
+        // 入力リセット（careDateはそのまま）
+        patientIdInput.value = "";
+        nameInput.value = "";
+        allergyInput.value = "";
+        noteInput.value = "";
+        icfActivityLevelInput.value = "";
+        icfEnvironmentInput.value = "";
+        icfMemoInput.value = "";
+        temperatureInput.value = "";
+        pulseInput.value = "";
+        toiletStatusInput.value = "";
+        mealAmountInput.value = "";
+        mealContentInput.value = "";
+        medicationStatusInput.value = "";
+        photoInput.value = "";
+        tempPhotoDataUrl = null;
+        photoPreview.innerHTML = "";
+
+        await fetchRecordsFromFirestore();
+        alert("記録を保存しました。");
+      } catch (e) {
+        console.error("save error", e);
+        alert("記録の保存に失敗しました。");
+      }
+    });
+
+    // 全削除
+    clearAllBtn.addEventListener("click", async () => {
+      if (!currentUser) {
+        alert("ログインしてください。");
+        return;
+      }
+      if (!confirm("すべての記録を削除しますか？（元に戻せません）")) return;
+
+      try {
+        const colRef = collection(db, "users", currentUser.uid, "records");
+        const snap = await getDocs(colRef);
+        const batch = writeBatch(db);
+        snap.forEach((docSnap) => {
+          batch.delete(doc(db, "users", currentUser.uid, "records", docSnap.id));
+        });
+        await batch.commit();
+        recordsCache = [];
+        renderRecords();
+      } catch (e) {
+        console.error("clearAll error", e);
+        alert("全削除に失敗しました。");
+      }
+    });
+
+    // 絞り込みボタン
+    applyFilterBtn.addEventListener("click", () => {
+      renderRecords();
+    });
+
+    // 絞り込み解除
+    clearFilterBtn.addEventListener("click", () => {
+      filterDateFromInput.value = "";
+      filterDateToInput.value = "";
+      filterPatientIdInput.value = "";
+      renderRecords();
+    });
+
+    // 写真拡大用モーダル
+    function openPhotoModal(dataUrl) {
+      modalImage.src = dataUrl;
+      photoModal.classList.add("show");
+    }
+    photoModal.addEventListener("click", () => {
+      photoModal.classList.remove("show");
+    });
+
+    // 初期表示
+    setTodayToCareDate();
+  </script>
+</body>
+</html>
